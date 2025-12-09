@@ -10,8 +10,13 @@ connectDB();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+    origin: '*', // Allow all origins for debugging
+    credentials: true
+}));
 app.use(express.json());
+
+console.log('Server initialized');
 
 // Routes
 import authRoutes from './backend/routes/authRoutes.js';
