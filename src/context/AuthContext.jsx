@@ -115,39 +115,70 @@ export const AuthProvider = ({ children }) => {
         logout,
         updateProfile,
         googleLogin: async () => {
-            try {
-                // Check if auth and googleProvider are available
-                if (!auth || !googleProvider) {
-                    throw new Error('Firebase authentication not initialized');
+            // Retry mechanism for network errors
+            const maxRetries = 3;
+            let attempts = 0;
+            
+            while (attempts < maxRetries) {
+                try {
+                    // Check if auth and googleProvider are available
+                    if (!auth || !googleProvider) {
+                        throw new Error('Firebase authentication not initialized');
+                    }
+
+                    const result = await signInWithPopup(auth, googleProvider);
+                    // The signed-in user info.
+                    const user = result.user;
+
+                    // Send user info to backend to create session/account
+                    const config = {
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    };
+
+                    try {
+                        const { data } = await api.post(
+                            '/api/auth/google',
+                            {
+                                email: user.email,
+                                name: user.displayName || user.email.split('@')[0],
+                                googleId: user.uid
+                            },
+                            config
+                        );
+
+                        localStorage.setItem('userInfo', JSON.stringify(data));
+                        setUser(data);
+                        return data;
+                    } catch (apiError) {
+                        console.error("Backend API Error", apiError);
+                        // More descriptive error message for network issues
+                        if (apiError.code === 'ERR_NETWORK') {
+                            attempts++;
+                            if (attempts >= maxRetries) {
+                                throw new Error('Network error: Unable to connect to authentication server after multiple attempts. Please check your internet connection and try again.');
+                            }
+                            // Wait before retrying
+                            await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+                            continue; // Retry
+                        } else if (apiError.response) {
+                            // Server responded with error status
+                            throw new Error(`Authentication failed: ${apiError.response.data.message || apiError.response.statusText}`);
+                        } else {
+                            // Other error (e.g., timeout)
+                            throw new Error('Authentication service temporarily unavailable. Please try again later.');
+                        }
+                    }
+                } catch (error) {
+                    console.error("Google Sign In Error", error);
+                    // Re-throw error with more user-friendly message
+                    if (error.message) {
+                        throw error;
+                    } else {
+                        throw new Error('Google Sign In failed. Please check your internet connection and try again.');
+                    }
                 }
-
-                const result = await signInWithPopup(auth, googleProvider);
-                // The signed-in user info.
-                const user = result.user;
-
-                // Send user info to backend to create session/account
-                const config = {
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                };
-
-                const { data } = await api.post(
-                    '/api/auth/google',
-                    {
-                        email: user.email,
-                        name: user.displayName || user.email.split('@')[0],
-                        googleId: user.uid
-                    },
-                    config
-                );
-
-                localStorage.setItem('userInfo', JSON.stringify(data));
-                setUser(data);
-                return data;
-            } catch (error) {
-                console.error("Google Sign In Error", error);
-                throw error;
             }
         },
     };

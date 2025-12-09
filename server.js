@@ -10,25 +10,33 @@ connectDB();
 
 const app = express();
 
+// Enhanced CORS configuration for Vercel deployment
 app.use(cors({
     origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
         const allowedOrigins = [
             'http://localhost:5173',
             'http://localhost:5000',
             'https://mentorphysical.site',
-            'https://gym-mentor-fit.vercel.app'
+            'https://gym-mentor-fit.vercel.app',
+            // Allow any vercel.app subdomain for preview deployments
+            'vercel.app'
         ];
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-
-        if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app')) {
+        
+        // Check if origin is in allowed list or ends with vercel.app
+        if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app') || origin.includes('mentorphysical')) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
         }
     },
-    credentials: true
+    credentials: true,
+    optionsSuccessStatus: 200,
+    exposedHeaders: ['Authorization']
 }));
+
 app.use(express.json());
 
 console.log('Server initialized');
@@ -86,12 +94,15 @@ app.get('/', (req, res) => {
     res.send('API is running...');
 });
 
-const PORT = process.env.PORT || 5000;
+// For Vercel deployment, we need to export a handler function
+// This is for the serverless function entry point
+export default app;
 
-if (process.env.NODE_ENV !== 'production') {
+// Only listen locally when not in Vercel environment
+if (!process.env.VERCEL) {
+    const PORT = process.env.PORT || 5000;
+    
     app.listen(PORT, () => {
         console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
     });
 }
-
-export default app;

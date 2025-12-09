@@ -17,10 +17,16 @@ const Login = () => {
 
     const handleGoogleLogin = async () => {
         try {
+            setError(''); // Clear any previous errors
             await googleLogin();
             navigate(redirect);
         } catch (error) {
-            setError(error.message);
+            // Display more specific error messages
+            if (error.message) {
+                setError(error.message);
+            } else {
+                setError('Google Sign In failed. Please check your internet connection and try again.');
+            }
         }
     };
 

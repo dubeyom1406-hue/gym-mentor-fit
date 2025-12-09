@@ -131,46 +131,75 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/google
 // @access  Public
 const googleAuth = asyncHandler(async (req, res) => {
-    const { email, name, googleId } = req.body;
+    try {
+        const { email, name, googleId } = req.body;
 
-    const user = await User.findOne({ email });
+        // Validate required fields
+        if (!email || !name || !googleId) {
+            res.status(400);
+            throw new Error('Missing required fields for Google authentication');
+        }
 
-    if (user) {
-        // User exists, login
-        res.json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            isAdmin: user.isAdmin,
-            token: generateToken(user._id),
-            subscription: user.subscription // Ensure subscription is returned if it exists
-        });
-    } else {
-        // User doesn't exist, register
-        // Create a random password for Google users (they won't use it, but schema might require it)
-        // Or better, handle password as optional in model if not already, but usually setting a random one is safer if validation requires it.
-        const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+        const user = await User.findOne({ email });
 
-        const newUser = await User.create({
-            name,
-            email,
-            password: randomPassword,
-        });
-
-        if (newUser) {
-            res.status(201).json({
-                _id: newUser._id,
-                name: newUser.name,
-                email: newUser.email,
-                isAdmin: newUser.isAdmin,
-                token: generateToken(newUser._id),
-                subscription: newUser.subscription
+        if (user) {
+            // User exists, login
+            res.json({
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                isAdmin: user.isAdmin,
+                token: generateToken(user._id),
+                subscription: user.subscription // Ensure subscription is returned if it exists
             });
         } else {
-            res.status(400);
-            throw new Error('Invalid user data');
+            // User doesn't exist, register
+            // Create a random password for Google users (they won't use it, but schema might require it)
+            // Or better, handle password as optional in model if not already, but usually setting a random one is safer if validation requires it.
+            const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+
+            const newUser = await User.create({
+                name,
+                email,
+                password: randomPassword,
+            });
+
+            if (newUser) {
+                res.status(201).json({
+                    _id: newUser._id,
+                    name: newUser.name,
+                    email: newUser.email,
+                    isAdmin: newUser.isAdmin,
+                    token: generateToken(newUser._id),
+                    subscription: newUser.subscription
+                });
+            } else {
+                res.status(400);
+                throw new Error('Invalid user data');
+            }
         }
+    } catch (error) {
+        console.error('Google Auth Error:', error);
+        // If it's already an express async handler error, rethrow it
+        if (error.name === 'ValidationError') {
+            res.status(400);
+            throw new Error(Object.values(error.errors)[0].message);
+        }
+        // For all other errors, let the async handler deal with it
+        throw error;
     }
 });
 
-export { registerUser, authUser, getUserProfile, updateUserProfile, googleAuth };
+// @desc    Health check endpoint
+// @route   GET /api/auth/health
+// @access  Public
+const healthCheck = asyncHandler(async (req, res) => {
+    res.json({
+        status: 'OK',
+        message: 'Authentication service is running',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'unknown'
+    });
+});
+
+export { registerUser, authUser, getUserProfile, updateUserProfile, googleAuth, healthCheck };
