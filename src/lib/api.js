@@ -11,14 +11,14 @@ const getApiUrl = () => {
     // Otherwise, use the environment variable if set
     if (typeof window !== 'undefined') {
         // Client-side
-        const isSameDomain = window.location.hostname.includes('vercel.app') || 
-                             window.location.hostname.includes('mentorphysical.site');
+        const isSameDomain = window.location.hostname.includes('vercel.app') ||
+            window.location.hostname.includes('mentorphysical.site');
         if (isSameDomain) {
-            return '/api'; // Relative path for same-domain API calls
+            return ''; // Relative path for same-domain API calls
         }
     }
     // Fallback to environment variable or default
-    return import.meta.env.VITE_API_URL || 'https://gym-mentor-fit.vercel.app/api';
+    return import.meta.env.VITE_API_URL || 'https://gym-mentor-fit.vercel.app';
 };
 
 export const API_URL = getApiUrl();
@@ -58,7 +58,7 @@ api.interceptors.response.use(
             console.error('Network error:', error.message);
             return Promise.reject(new Error('Network error: Unable to connect to server. Please check your internet connection.'));
         }
-        
+
         // Handle other HTTP errors
         console.error('API Error:', error.response?.status, error.response?.data);
         return Promise.reject(error);
