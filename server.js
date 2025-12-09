@@ -11,7 +11,22 @@ connectDB();
 const app = express();
 
 app.use(cors({
-    origin: '*', // Allow all origins for debugging
+    origin: (origin, callback) => {
+        const allowedOrigins = [
+            'http://localhost:5173',
+            'http://localhost:5000',
+            'https://mentorphysical.site',
+            'https://gym-mentor-fit.vercel.app'
+        ];
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app')) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true
 }));
 app.use(express.json());
